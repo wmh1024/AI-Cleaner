@@ -175,7 +175,7 @@ pnpm build
 # 构建产物在 frontend/dist/，可由 FastAPI 直接 serve
 ```
 
-## Cloud 分支说明
+## ~~Cloud 分支说明~~（还有点 bug）
 
 Cloud 版本只用于本项目演示部分的项目信息披露，保证演示的网页端不会收集相关敏感信息。Cloud 分支下，用户在浏览器中输入的 API key 不会被后端长期保存。后端目前只保留了无状态的接口（例如 `/api/settings/test`、`/api/rewrite` 和 `/api/nlp*`），API key 只会在用户发起请求时短暂进入后端内存，并被转发给所选择的上游服务。如果用户没有填写 API key，系统才会使用服务端配置的环境变量作为兜底。同时，后端已经对 `/api/*` 响应统一设置了 `Cache-Control: no-store`，并且会对日志中的 `api_key`、`authorization`、`base_url` 等敏感字段做脱敏处理，降低泄露风险。
 
