@@ -290,6 +290,7 @@ export default function App() {
       setShowLengthModal(true)
       return
     }
+    setShowLengthModal(false)
     rememberAction('agent')
     setBusy(true)
     setOutput('')
