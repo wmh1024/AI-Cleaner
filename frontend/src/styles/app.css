@@ -824,15 +824,16 @@ pre {
 .diff-delete,
 .diff-insert {
   position: relative;
-  border-radius: 5px;
-  padding: 0 2px;
+  display: inline;
+  padding: 0.06em 0.16em;
+  border-radius: 6px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 .diff-delete {
-  color: #991b1b;
-  background:
-    linear-gradient(180deg, transparent 58%, rgba(185, 28, 28, 0.18) 58% 82%, transparent 82%),
-    rgba(254, 226, 226, 0.26);
+  color: #b91c1c;
+  background: rgba(254, 242, 242, 0.96);
   text-decoration-line: line-through;
   text-decoration-thickness: 1.5px;
   text-decoration-color: rgba(153, 27, 27, 0.72);
@@ -842,27 +843,15 @@ pre {
 }
 
 .diff-delete::after {
-  content: '';
-  position: absolute;
-  left: 4%;
-  right: 3%;
-  bottom: 0.04em;
-  height: 0.22em;
-  border-radius: 999px;
-  background: rgba(185, 28, 28, 0.16);
-  filter: blur(2px);
-  transform: rotate(-0.7deg);
-  pointer-events: none;
+  content: none;
 }
 
 .diff-insert {
-  color: #065f46;
-  background:
-    linear-gradient(180deg, transparent 58%, rgba(6, 95, 70, 0.18) 58% 82%, transparent 82%),
-    rgba(209, 250, 229, 0.30);
+  color: #047857;
+  background: rgba(209, 250, 229, 0.96);
   text-shadow:
-    0.25px 0.15px 0 rgba(6, 95, 70, 0.16),
-    -0.2px 0.25px 0 rgba(6, 95, 70, 0.10);
+    0.25px 0.15px 0 rgba(6, 95, 70, 0.14),
+    -0.2px 0.25px 0 rgba(6, 95, 70, 0.09);
 }
 
 .red-ink-mark::before {
@@ -878,6 +867,7 @@ pre {
   transform: rotate(18deg);
   pointer-events: none;
 }
+
 
 .history-list {
   display: grid;
