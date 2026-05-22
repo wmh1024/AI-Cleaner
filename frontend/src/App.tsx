@@ -14,6 +14,7 @@ import logoUrl from './assets/logo.png'
 import { DiffView } from './components/DiffView'
 import { HistoryList } from './components/HistoryList'
 import { SettingsPanel } from './components/SettingsPanel'
+import { Tooltip } from './components/Tooltip'
 import { TypewriterOutput } from './components/TypewriterOutput'
 import { WindCanvas } from './components/WindCanvas'
 import { api, streamNlpRewrite, streamRewrite } from './lib/api'
@@ -28,6 +29,34 @@ import type {
   SettingsView,
 } from './types'
 
+type LastAction = 'agent' | 'nlp'
+
+type UiPreferences = {
+  lastAction: LastAction
+  platform: PlatformName
+  iterations: number
+  nlpEnabled: boolean
+  nlpMode: NlpMode
+  nlpStyle: NlpStyle
+  nlpBestOfN: number
+  nlpSeed: string
+  nlpAggressive: boolean
+}
+
+const UI_PREFERENCES_KEY = 'ai-cleaner-ui-preferences'
+
+const defaultPreferences: UiPreferences = {
+  lastAction: 'agent',
+  platform: 'weipu',
+  iterations: 2,
+  nlpEnabled: false,
+  nlpMode: 'manual',
+  nlpStyle: 'academic',
+  nlpBestOfN: 10,
+  nlpSeed: '',
+  nlpAggressive: false,
+}
+
 const initialText =
   '自然语言处理是一门融合了计算机科学、数学与语言学的综合性学科，而文本分类作为其重要的研究方向，在大数据时代具有显著意义——文本型数据凭借其存储轻便、描述力强的特点，成为最常见的电子数据类型之一。如何在海量文本中高效且准确地提取所需信息，已成为一个现实而迫切的问题。本文主要基于自然语言处理中的文本数据处理方法与机器学习理论，对文本分类模型的实现展开研究。实验部分采用Python进行编程，围绕以下内容展开：首先，综合阐述文本分类的相关理论与发展现状，介绍文本处理流程，使用TF-IDF进行特征提取，并对比jieba、SnowNLP、pkuseg三种分词工具，最终选定pkuseg作为本文数据的最优切词方案。其次，通过加权F1值、准确率等指标评估算法性能，除基础的KNN、决策树、支持向量机外，还引入了随机森林、GBDT、XGBoost、LightGBM等集成学习方法。实验表明，集成模型整体表现优于基础模型。最后，采用Stacking融合策略分别对四个基础模型与四个集成模型进行集成，结果发现融合后的模型多数情况下优于单个模型，整体体现出Stacking策略的优越性。其中，以梯度提升树作为次级学习器的Stacking集成模型效果最佳，其加权F1值达xxxx，准确率约为xxxx%，从而验证了Stacking集成算法在文本分类中的有效性与准确性。\n本文进一步将研究视角延伸至深度学习领域，探索基于神经网络的文本表示与分类模型。不同于传统机器学习方法依赖人工特征工程，深度学习模型能够自动从原始文本中学习层次化的特征表示，从而在复杂语义理解任务中展现出更强的能力。实验部分在先前预处理流程基础上，引入词向量（Word2Vec与BERT）作为文本的分布式表征，并构建了包括TextCNN、BiLSTM及其注意力机制变体在内的多种深度学习架构。通过对比分析发现，基于BERT预训练模型的微调方案在本文所使用的数据集上取得了最优性能，其F1值达到xxxx，准确率为xxxxx%，显著优于传统机器学习模型及浅层神经网络。同时，本文设计了一组对比实验，考察不同文本长度、类别不平衡程度以及数据增强策略对模型泛化能力的影响。结果表明，结合随机裁剪与回译的数据增强方法能够有效缓解过拟合问题，尤其在样本量较少的类别中，模型性能提升最为明显。本研究不仅验证了深度学习方法在中文文本分类任务中的有效性，也为后续面向特定领域的文本分析系统开发提供了可借鉴的技术路径与参数调优经验。'
 
@@ -40,6 +69,11 @@ function clampBestOfN(value: number) {
   return Math.max(0, Math.min(20, Math.round(value)))
 }
 
+function clampIterations(value: number) {
+  if (!Number.isFinite(value)) return 2
+  return Math.max(1, Math.min(5, Math.round(value)))
+}
+
 function parseSeed(value: string) {
   const trimmed = value.trim()
   if (!trimmed) return undefined
@@ -47,18 +81,47 @@ function parseSeed(value: string) {
   return Number.isFinite(seed) ? Math.trunc(seed) : undefined
 }
 
+function readUiPreferences(): UiPreferences {
+  try {
+    const saved = window.localStorage.getItem(UI_PREFERENCES_KEY)
+    if (!saved) return defaultPreferences
+    const parsed = JSON.parse(saved) as Partial<UiPreferences>
+    return {
+      lastAction: parsed.lastAction === 'nlp' ? 'nlp' : 'agent',
+      platform: parsed.platform ?? defaultPreferences.platform,
+      iterations: clampIterations(Number(parsed.iterations ?? defaultPreferences.iterations)),
+      nlpEnabled: Boolean(parsed.nlpEnabled ?? defaultPreferences.nlpEnabled),
+      nlpMode: parsed.nlpMode === 'auto' ? 'auto' : 'manual',
+      nlpStyle: parsed.nlpStyle ?? defaultPreferences.nlpStyle,
+      nlpBestOfN: clampBestOfN(Number(parsed.nlpBestOfN ?? defaultPreferences.nlpBestOfN)),
+      nlpSeed: typeof parsed.nlpSeed === 'string' ? parsed.nlpSeed : defaultPreferences.nlpSeed,
+      nlpAggressive: Boolean(parsed.nlpAggressive ?? defaultPreferences.nlpAggressive),
+    }
+  } catch {
+    return defaultPreferences
+  }
+}
+
+function persistUiPreferences(preferences: UiPreferences) {
+  try {
+    window.localStorage.setItem(UI_PREFERENCES_KEY, JSON.stringify(preferences))
+  } catch {
+    // Browser storage can be unavailable in private mode.
+  }
+}
+
 export default function App() {
   const [settings, setSettings] = useState<SettingsView | null>(null)
   const [draft, setDraft] = useState<Record<string, string | boolean>>({})
   const [text, setText] = useState(initialText)
-  const [platform, setPlatform] = useState<PlatformName>('weipu')
-  const [iterations, setIterations] = useState(1)
-  const [nlpEnabled, setNlpEnabled] = useState(false)
-  const [nlpMode, setNlpMode] = useState<NlpMode>('manual')
-  const [nlpStyle, setNlpStyle] = useState<NlpStyle>('academic')
-  const [nlpBestOfN, setNlpBestOfN] = useState(10)
-  const [nlpSeed, setNlpSeed] = useState('')
-  const [nlpAggressive, setNlpAggressive] = useState(false)
+  const [platform, setPlatform] = useState<PlatformName>(defaultPreferences.platform)
+  const [iterations, setIterations] = useState(defaultPreferences.iterations)
+  const [nlpEnabled, setNlpEnabled] = useState(defaultPreferences.nlpEnabled)
+  const [nlpMode, setNlpMode] = useState<NlpMode>(defaultPreferences.nlpMode)
+  const [nlpStyle, setNlpStyle] = useState<NlpStyle>(defaultPreferences.nlpStyle)
+  const [nlpBestOfN, setNlpBestOfN] = useState(defaultPreferences.nlpBestOfN)
+  const [nlpSeed, setNlpSeed] = useState(defaultPreferences.nlpSeed)
+  const [nlpAggressive, setNlpAggressive] = useState(defaultPreferences.nlpAggressive)
   const [activeTab, setActiveTab] = useState<'output' | 'diff' | 'history' | 'settings'>('output')
   const [output, setOutput] = useState('')
   const [rawOutput, setRawOutput] = useState('')
@@ -69,14 +132,39 @@ export default function App() {
   const [testResult, setTestResult] = useState('')
   const [copied, setCopied] = useState(false)
   const [showLengthModal, setShowLengthModal] = useState(false)
+  const [lastAction, setLastAction] = useState<LastAction>(defaultPreferences.lastAction)
 
   const charCount = useMemo(() => countText(text), [text])
 
   useEffect(() => {
-    void refresh()
+    const preferences = readUiPreferences()
+    setLastAction(preferences.lastAction)
+    setPlatform(preferences.platform)
+    setIterations(preferences.iterations)
+    setNlpEnabled(preferences.nlpEnabled)
+    setNlpMode(preferences.nlpMode)
+    setNlpStyle(preferences.nlpStyle)
+    setNlpBestOfN(preferences.nlpBestOfN)
+    setNlpSeed(preferences.nlpSeed)
+    setNlpAggressive(preferences.nlpAggressive)
+    void refresh(preferences)
   }, [])
 
-  async function refresh() {
+  useEffect(() => {
+    persistUiPreferences({
+      lastAction,
+      platform,
+      iterations: clampIterations(iterations),
+      nlpEnabled,
+      nlpMode,
+      nlpStyle,
+      nlpBestOfN: clampBestOfN(nlpBestOfN),
+      nlpSeed,
+      nlpAggressive,
+    })
+  }, [lastAction, platform, iterations, nlpEnabled, nlpMode, nlpStyle, nlpBestOfN, nlpSeed, nlpAggressive])
+
+  async function refresh(preferences = readUiPreferences()) {
     let nextSettings: SettingsView
     try {
       nextSettings = await api.getSettings()
@@ -119,14 +207,18 @@ export default function App() {
       stream: nextSettings.stream,
       ...localOverrides,
     })
-    setNlpEnabled(nextSettings.nlp_enabled)
-    setNlpMode(nextSettings.nlp_mode === 'off' ? 'manual' : nextSettings.nlp_mode)
-    setNlpStyle(nextSettings.nlp_style)
+    setNlpEnabled(preferences.nlpEnabled)
+    setNlpMode(preferences.nlpMode)
+    setNlpStyle(preferences.nlpStyle)
     try {
       setHistory(await api.history())
     } catch (err) {
       console.error('[refresh] history failed:', err)
     }
+  }
+
+  function rememberAction(action: LastAction) {
+    setLastAction(action)
   }
 
   function updateDraft(key: string, value: string | boolean) {
@@ -178,13 +270,11 @@ export default function App() {
     return {
       text,
       platform,
-      iterations,
+      iterations: clampIterations(iterations),
       provider,
       model: provider === 'openai' ? String(draft.openai_model ?? '') : String(draft.anthropic_model ?? ''),
       base_url: provider === 'openai' ? String(draft.openai_base_url ?? '') : String(draft.anthropic_base_url ?? ''),
       ...(customApiKey ? { api_key: customApiKey } : {}),
-      // The primary rewrite action should always use SSE progress.
-      // Without this, a slow LLM call leaves the UI stuck at “启动工作流” until the request finishes.
       stream: true,
       nlp_enabled: nlpEnabled,
       nlp_mode: nlpMode,
@@ -200,7 +290,7 @@ export default function App() {
       setShowLengthModal(true)
       return
     }
-    setShowLengthModal(false)
+    rememberAction('agent')
     setBusy(true)
     setOutput('')
     setRawOutput('')
@@ -261,7 +351,7 @@ export default function App() {
   }
 
   async function runNlpOnly() {
-    setShowLengthModal(false)
+    rememberAction('nlp')
     setBusy(true)
     setOutput('')
     setRawOutput('')
@@ -372,19 +462,26 @@ export default function App() {
               {charCount} 字
             </span>
             <select value={platform} onChange={(event) => setPlatform(event.target.value as PlatformName)}>
-              <option value="weipu">维普</option>
-              <option value="paperyy">PaperYY</option>
-              <option value="paperpass">PaperPass</option>
-              <option value="zhuque">腾讯朱雀</option>
+              <option value="weipu">学术论文 Zero</option>
+              <option value="paperyy">学术论文 One</option>
+              <option value="paperpass">学术论文 Two</option>
+              <option value="zhuque">学术论文 Three</option>
+              <option value="novel">小说 Zero</option>
             </select>
-            <label className="stepper">
-              迭代
+            <label className="stepper compact-field">
+              <span className="label-with-help">
+                迭代
+                <Tooltip
+                  label="迭代次数说明"
+                  content="次数越多，改写更深，但更慢，也更容易偏离原文。"
+                />
+              </span>
               <input
                 type="number"
                 min={1}
                 max={5}
                 value={iterations}
-                onChange={(event) => setIterations(Number(event.target.value))}
+                onChange={(event) => setIterations(clampIterations(Number(event.target.value)))}
               />
             </label>
           </div>
@@ -418,12 +515,16 @@ export default function App() {
                 <option value="academic">学术</option>
                 <option value="general">通用文本</option>
                 <option value="long_blog">自媒体/长篇博客</option>
+                <option value="novel">小说/长篇叙事</option>
               </select>
             </label>
             <label>
               <span className="label-with-help">
                 候选
-                <span className="help-dot" aria-label="候选数量说明" data-tip="生成多个 NLP 改写候选并选择检测特征更低的一版；数值越大通常更稳，但耗时更长。">?</span>
+                <Tooltip
+                  label="候选数量说明"
+                  content="生成多个 NLP 改写候选并选择检测特征更低的一版；数值越大通常更稳，但耗时更长。"
+                />
               </span>
               <input
                 type="number"
@@ -436,7 +537,10 @@ export default function App() {
             <label>
               <span className="label-with-help">
                 Seed
-                <span className="help-dot" aria-label="Seed 参数说明" data-tip="随机种子。填同一个数字会尽量复现实验结果；留空则每次随机。">?</span>
+                <Tooltip
+                  label="Seed 参数说明"
+                  content="随机种子。填同一个数字会尽量复现实验结果；留空则每次随机。"
+                />
               </span>
               <input
                 inputMode="numeric"
@@ -461,11 +565,21 @@ export default function App() {
             </label>
           </div>
           <div className="primary-actions">
-            <button className="primary-button" disabled={busy || !text.trim()} type="button" onClick={() => void runRewrite()}>
+            <button
+              className={lastAction === 'agent' ? 'primary-button' : 'secondary-button'}
+              disabled={busy || !text.trim()}
+              type="button"
+              onClick={() => void runRewrite()}
+            >
               <Send size={16} /> Agent 降 AIGC
             </button>
-            <button className="secondary-button" disabled={busy || !text.trim()} type="button" onClick={() => void runNlpOnly()}>
-              <WandSparkles size={16} /> NLP 降 AIGC
+            <button
+              className={lastAction === 'nlp' ? 'primary-button' : 'secondary-button'}
+              disabled={busy || !text.trim()}
+              type="button"
+              onClick={() => void runNlpOnly()}
+            >
+              <WandSparkles size={16} /> 纯 NLP 降 AIGC
             </button>
             <button className="ghost-button" type="button" onClick={() => setText(initialText)}>
               <RotateCcw size={16} /> 示例

@@ -14,6 +14,6 @@ DEFAULT_ANTHROPIC_MODEL = "claude-4-6-sonnet"
 OPENAI_CHAT_COMPLETIONS_PATH = "/chat/completions"
 ANTHROPIC_MESSAGES_PATH = "/v1/messages"
 
-SUPPORTED_PLATFORMS = ("weipu", "paperyy", "paperpass", "zhuque")
+SUPPORTED_PLATFORMS = ("weipu", "paperyy", "paperpass", "zhuque", "novel")
 SUPPORTED_PROVIDERS = ("openai", "anthropic")
-SUPPORTED_NLP_STYLES = ("academic", "general", "long_blog")
+SUPPORTED_NLP_STYLES = ("academic", "general", "long_blog", "novel")

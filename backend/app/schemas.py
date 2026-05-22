@@ -8,9 +8,9 @@ from pydantic import BaseModel, Field
 
 ProviderName = Literal["openai", "anthropic"]
 HistoryProviderName = Literal["openai", "anthropic", "local"]
-PlatformName = Literal["weipu", "paperyy", "paperpass", "zhuque"]
+PlatformName = Literal["weipu", "paperyy", "paperpass", "zhuque", "novel"]
 NlpMode = Literal["off", "manual", "auto"]
-NlpStyle = Literal["academic", "general", "long_blog"]
+NlpStyle = Literal["academic", "general", "long_blog", "novel"]
 
 
 class SettingsPayload(BaseModel):
@@ -65,7 +65,7 @@ class SettingsTestResponse(BaseModel):
 class RewriteRequest(BaseModel):
     text: str
     platform: PlatformName = "weipu"
-    iterations: int = Field(default=1, ge=1, le=5)
+    iterations: int = Field(default=2, ge=1, le=5)
     provider: ProviderName | None = None
     model: str | None = None
     base_url: str | None = None

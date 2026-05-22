@@ -11,7 +11,7 @@ NLP_CLASSIFICATION_SYSTEM_PROMPT = (
     "将中文文本分类为 NLP 改写模式。只输出 JSON，"
     '格式 {"style":"academic|general|long_blog"}。'
 )
-VALID_NLP_STYLES = {"academic", "general", "long_blog"}
+VALID_NLP_STYLES = {"academic", "general", "long_blog", "novel", "novel"}
 
 
 class NlpClassifier(Protocol):

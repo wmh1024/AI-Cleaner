@@ -1,8 +1,8 @@
 export type ProviderName = 'openai' | 'anthropic'
 export type HistoryProviderName = ProviderName | 'local'
-export type PlatformName = 'weipu' | 'paperyy' | 'paperpass' | 'zhuque'
+export type PlatformName = 'weipu' | 'paperyy' | 'paperpass' | 'zhuque' | 'novel'
 export type NlpMode = 'off' | 'manual' | 'auto'
-export type NlpStyle = 'academic' | 'general' | 'long_blog'
+export type NlpStyle = 'academic' | 'general' | 'long_blog' | 'novel'
 
 export interface SettingsView {
   provider: ProviderName

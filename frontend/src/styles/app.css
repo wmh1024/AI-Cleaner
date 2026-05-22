@@ -491,6 +491,24 @@ label {
   align-items: end;
 }
 
+.input-meta select,
+.input-meta input,
+.input-meta .count {
+  font-size: 12px;
+}
+
+.input-meta label {
+  font-size: 11px;
+}
+
+.compact-field {
+  gap: 5px;
+}
+
+.compact-field .label-with-help {
+  gap: 5px;
+}
+
 .count {
   min-height: 42px;
   border: 1px solid rgba(229, 231, 235, 0.72);
@@ -1108,44 +1126,47 @@ pre {
   align-items: center;
   gap: 6px;
 }
-.help-dot {
-  position: relative;
-  width: 16px;
-  height: 16px;
+
+.tooltip-trigger {
+  width: 15px;
+  height: 15px;
+  min-height: 15px;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: rgba(17, 24, 39, 0.10);
   color: #111827;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   cursor: help;
+  box-shadow: none;
 }
 
-.help-dot::after {
-  content: attr(data-tip);
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%) translateY(4px);
-  width: 230px;
+.tooltip-trigger:hover,
+.tooltip-trigger:focus-visible {
+  transform: none;
+  background: rgba(17, 24, 39, 0.16);
+  box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.08);
+}
+
+.tooltip-bubble {
+  position: fixed;
+  z-index: 2000;
+  width: min(230px, calc(100vw - 24px));
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid rgba(229, 231, 235, 0.92);
   background: rgba(255, 255, 255, 0.96);
   color: #374151;
+  font-size: 12px;
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
-  line-height: 1.5;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 140ms ease, transform 140ms ease;
-  z-index: 20;
-}
-
-.help-dot:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  line-height: 1.4;
+  white-space: normal;
+  backdrop-filter: blur(8px) saturate(1.18);
+  -webkit-backdrop-filter: blur(8px) saturate(1.18);
 }
 
 .privacy-note {
