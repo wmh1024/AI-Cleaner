@@ -856,13 +856,13 @@ pre {
 }
 
 .diff-insert {
-  color: #111827;
+  color: #065f46;
   background:
-    linear-gradient(180deg, transparent 64%, rgba(17, 24, 39, 0.10) 64% 82%, transparent 82%),
-    rgba(255, 255, 255, 0.12);
+    linear-gradient(180deg, transparent 58%, rgba(6, 95, 70, 0.18) 58% 82%, transparent 82%),
+    rgba(209, 250, 229, 0.30);
   text-shadow:
-    0.2px 0.15px 0 rgba(17, 24, 39, 0.10),
-    -0.16px 0.24px 0 rgba(17, 24, 39, 0.06);
+    0.25px 0.15px 0 rgba(6, 95, 70, 0.16),
+    -0.2px 0.25px 0 rgba(6, 95, 70, 0.10);
 }
 
 .red-ink-mark::before {
