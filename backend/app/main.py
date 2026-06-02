@@ -18,11 +18,11 @@ from .constants import (
     DEFAULT_OPENAI_BASE_URL,
     OPENAI_CHAT_COMPLETIONS_PATH,
 )
-from .aigc_detector import detect_aigc_risk, format_aigc_report_for_prompt
+from .aigc_detector import detect_aigc_risk, detection_scene_for_platform, format_aigc_report_for_prompt
 from .database import configure_database, delete_history, get_history, insert_history, list_history
 from .diffing import build_diff, length_warnings
 from .nlp.pipeline import choose_nlp_style, rewrite_with_nlp, rewrite_with_nlp_style
-from .prompt_service import build_messages, extract_rewritten_text
+from .prompt_service import build_evaluator_messages, build_messages, extract_rewritten_text
 from .providers import get_provider
 from .schemas import (
     HistoryItem,
@@ -281,7 +281,10 @@ async def rewrite_stream_events(payload: RewriteRequest) -> AsyncIterator[str]:
 
         for iteration in range(2, payload.iterations + 1):
             yield sse("node_started", {"node": "evaluate_iterate", "iteration": iteration})
-            detection_report = detect_aigc_risk(current)
+            detection_report = detect_aigc_risk(
+                current,
+                scene=detection_scene_for_platform(payload.platform),
+            )
             detection_prompt = format_aigc_report_for_prompt(detection_report)
             yield sse(
                 "aigc_detection_result",
@@ -294,36 +297,12 @@ async def rewrite_stream_events(payload: RewriteRequest) -> AsyncIterator[str]:
                 },
             )
             feedback = await provider.complete(
-                [
-                    {
-                        "role": "system",
-                        "content": (
-                            "你是中文论文 AIGC 检测风险评估 agent。"
-                            "你的任务不是润色文章，而是结合本地检测器结果，找出当前改写文本中仍可能被检测为 AI 的语言特征。"
-                            "请只输出简短、可执行的修订意见，禁止输出改写后的正文。"
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": (
-                            "请结合本地 humanize-chinese 检测结果，对下面文本做 AIGC 检测风险评估，并给出下一轮修订方向。\n\n"
-                            "本地检测结果：\n"
-                            f"{detection_prompt}\n\n"
-                            "你需要重点检查：\n"
-                            "1. 是否存在模板化连接词或总结腔，如“首先、其次、最后、综上、显著意义、现实而迫切”等。\n"
-                            "2. 是否存在过于工整的并列结构、排比式表达或均匀句长。\n"
-                            "3. 是否存在抽象名词连续堆叠、动词弱化、表达过度凝练的问题。\n"
-                            "4. 是否缺少人工写作中常见的节奏变化、解释性转折和自然语序。\n"
-                            "5. 哪些句子应拆分、调序、换成更自然的学术转述。\n\n"
-                            "输出要求：\n"
-                            "- 最多 6 条。\n"
-                            "- 每条必须是具体可执行的修改建议。\n"
-                            "- 优先引用本地检测结果中的风险词、风险句或统计特征。\n"
-                            "- 不得改变事实、数据、术语和结论。\n\n"
-                            f"原文：\n{payload.text}\n\n当前改写：\n{current}"
-                        ),
-                    },
-                ]
+                build_evaluator_messages(
+                    payload.platform,
+                    payload.text,
+                    current,
+                    detection_prompt,
+                )
             )
             messages = build_messages(payload.platform, current, feedback, iteration=iteration)
             raw_output = await provider.complete(messages)

@@ -2,14 +2,20 @@ from __future__ import annotations
 
 import json
 import re
+import sys
+from pathlib import Path
 from typing import Literal
 
 NlpStyle = Literal["academic", "general", "long_blog", "novel"]
 
+_HUMANIZE_SCRIPTS_DIR = Path(__file__).resolve().parent / "humanize_chinese" / "scripts"
+if str(_HUMANIZE_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_HUMANIZE_SCRIPTS_DIR))
+
 # ── local classification markers ──────────────────────────────
 academic_markers = (
     "摘要", "关键词", "引言", "结论", "参考文献", "本研究",
-    "研究表明", "实验结果", "分析", "方法",
+    "本文", "研究表明", "实验结果", "实证", "分析", "方法",
 )
 social_markers = (
     "点赞", "关注", "转发", "收藏", "分享", "评论",
@@ -18,6 +24,8 @@ social_markers = (
 novel_markers = (
     r"第.{1,5}章",
     r"卷[一二三四五六七八九十\d]",
+    r"[“\"「『][^”\"」』]{2,80}[”\"」』]",
+    r"[他她我][^。！？]{0,12}(说|问|道|喊|低声|轻声|叹|笑|皱眉|看着|望向)",
     "节选",
     "番外",
     "楔子",
@@ -34,11 +42,17 @@ novel_markers = (
 
 
 def classify_locally(text: str) -> NlpStyle:
-    if sum(text.count(marker) for marker in academic_markers) >= 2:
-        return "academic"
     novel_score = sum(len(re.findall(marker, text)) for marker in novel_markers)
+    dialogue_count = len(re.findall(r"[“\"「『][^”\"」』]{2,80}[”\"」』]", text))
+    chapter_count = len(re.findall(r"(第[一二三四五六七八九十百千万\d]{1,5}章|序章|楔子|番外|尾声)", text))
+    if chapter_count and (dialogue_count or novel_score >= 2):
+        return "novel"
+    if dialogue_count >= 3 and novel_score >= 3:
+        return "novel"
     if novel_score >= 3:
         return "novel"
+    if sum(text.count(marker) for marker in academic_markers) >= 2:
+        return "academic"
     if len(text) > 1200 or sum(text.count(marker) for marker in social_markers) >= 2:
         return "long_blog"
     return "general"
@@ -98,7 +112,7 @@ def apply_nlp(
     if style == "long_blog":
         return humanize(
             text,
-            scene="general",
+            scene="auto",
             aggressive=aggressive,
             seed=seed,
             best_of_n=best_of_n,

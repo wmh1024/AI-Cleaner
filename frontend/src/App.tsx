@@ -221,6 +221,15 @@ export default function App() {
     setLastAction(action)
   }
 
+  function updatePlatform(nextPlatform: PlatformName) {
+    setPlatform(nextPlatform)
+    if (nextPlatform === 'novel') {
+      setNlpStyle('novel')
+    } else if (nlpStyle === 'novel') {
+      setNlpStyle('academic')
+    }
+  }
+
   function updateDraft(key: string, value: string | boolean) {
     setDraft((current) => {
       const next = { ...current, [key]: value }
@@ -462,7 +471,7 @@ export default function App() {
             <span className={charCount < 300 || charCount > 1200 ? 'count warn-count' : 'count'}>
               {charCount} 字
             </span>
-            <select value={platform} onChange={(event) => setPlatform(event.target.value as PlatformName)}>
+            <select value={platform} onChange={(event) => updatePlatform(event.target.value as PlatformName)}>
               <option value="weipu">学术论文 Zero</option>
               <option value="paperyy">学术论文 One</option>
               <option value="paperpass">学术论文 Two</option>

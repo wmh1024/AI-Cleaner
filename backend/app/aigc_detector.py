@@ -17,6 +17,15 @@ from .nlp.humanize_chinese.scripts.detect_cn import (  # noqa: E402
     detect_patterns,
     score_to_level,
 )
+from .nlp.humanize_chinese.scripts.ngram_model import compute_lr_score  # noqa: E402
+
+
+def detection_scene_for_platform(platform: str | None) -> str:
+    if platform == "novel":
+        return "novel"
+    if platform in {"weipu", "paperyy", "paperpass", "zhuque"}:
+        return "academic"
+    return "auto"
 
 
 @dataclass(frozen=True)
@@ -27,6 +36,9 @@ class AigcDetectionReport:
     metrics: dict[str, Any]
     issue_summaries: list[str]
     risky_sentences: list[str]
+    rule_score: int
+    lr_score: int | None
+    scene: str
 
 
 def _severity_rank(severity: str) -> int:
@@ -45,14 +57,27 @@ def _iter_issue_rows(issues: dict[str, list[dict[str, Any]]]) -> Iterable[tuple[
             yield category, str(item.get("severity", "medium")), item
 
 
-def detect_aigc_risk(text: str, *, max_issues: int = 10, max_sentences: int = 5) -> AigcDetectionReport:
+def detect_aigc_risk(
+    text: str,
+    *,
+    scene: str = "auto",
+    max_issues: int = 10,
+    max_sentences: int = 5,
+) -> AigcDetectionReport:
     """Run the bundled humanize-chinese detector and return compact LLM-ready facts.
 
     The score is heuristic: higher means more AI-like according to local rule/statistical
     signals. It is used as guidance for iterative rewriting, not as a definitive verdict.
     """
     issues, metrics = detect_patterns(text)
-    score = calculate_score(issues, metrics)
+    rule_score = calculate_score(issues, metrics)
+    lr_result = compute_lr_score(text, scene=scene)
+    lr_score = int(lr_result["score"]) if lr_result else None
+    score = round(0.2 * rule_score + 0.8 * lr_score) if lr_score is not None else rule_score
+    metrics["_rule_score"] = rule_score
+    if lr_result is not None:
+        metrics["_lr"] = lr_result
+        metrics["_fused"] = {"rule_stat": rule_score, "lr": lr_score}
     level = score_to_level(score)
     total_issues = sum(len(items) for items in issues.values())
 
@@ -84,6 +109,9 @@ def detect_aigc_risk(text: str, *, max_issues: int = 10, max_sentences: int = 5)
         metrics=metrics,
         issue_summaries=summaries,
         risky_sentences=risky_sentences,
+        rule_score=rule_score,
+        lr_score=lr_score,
+        scene=scene,
     )
 
 
@@ -101,8 +129,16 @@ def format_aigc_report_for_prompt(report: AigcDetectionReport) -> str:
         if isinstance(value, (int, float)):
             metric_parts.append(f"{label}={value:.3g}")
 
+    score_parts = [
+        f"融合分数：{report.score}/100",
+        f"规则/统计分：{report.rule_score}/100",
+    ]
+    if report.lr_score is not None:
+        score_parts.append(f"LR({report.scene})：{report.lr_score}/100")
     lines = [
-        f"本地 humanize-chinese 检测分数：{report.score}/100，风险等级：{report.level}，问题数：{report.total_issues}。",
+        "本地 humanize-chinese 检测结果："
+        + "，".join(score_parts)
+        + f"，风险等级：{report.level}，问题数：{report.total_issues}。",
     ]
     if metric_parts:
         lines.append("统计特征：" + "；".join(metric_parts) + "。")
