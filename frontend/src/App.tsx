@@ -472,11 +472,11 @@ export default function App() {
               {charCount} 字
             </span>
             <select value={platform} onChange={(event) => updatePlatform(event.target.value as PlatformName)}>
-              <option value="weipu">学术论文 Zero</option>
-              <option value="paperyy">学术论文 One</option>
-              <option value="paperpass">学术论文 Two</option>
-              <option value="zhuque">学术论文 Three</option>
-              <option value="novel">小说 Zero</option>
+              <option value="weipu">学术论文 Ⅰ</option>
+              <option value="paperyy">学术论文 Ⅱ</option>
+              <option value="paperpass">学术论文 Ⅲ</option>
+              <option value="zhuque">学术论文 Ⅳ</option>
+              <option value="novel">小说 Ⅰ</option>
             </select>
             <label className="stepper compact-field">
               <span className="label-with-help">
